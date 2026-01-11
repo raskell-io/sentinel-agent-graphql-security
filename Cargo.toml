@@ -1,0 +1,60 @@
+[package]
+name = "sentinel-agent-graphql-security"
+version = "0.1.0"
+edition = "2021"
+authors = ["Raskell <hello@raskell.io>"]
+description = "GraphQL security agent for Sentinel proxy - query depth, complexity, and introspection control"
+license = "Apache-2.0"
+repository = "https://github.com/raskell-io/sentinel-agent-graphql-security"
+keywords = ["sentinel", "proxy", "agent", "graphql", "security"]
+categories = ["network-programming", "web-programming"]
+readme = "README.md"
+
+[dependencies]
+# Sentinel SDK
+sentinel-agent-sdk = { git = "https://github.com/raskell-io/sentinel-agent-rust-sdk.git", branch = "main" }
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync", "time"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Futures for block_on
+futures = "0.3"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt"] }
+
+# GraphQL parsing - apollo-parser is actively maintained, spec-compliant
+apollo-parser = "0.8"
+
+# Hashing for persisted queries
+sha2 = "0.10"
+hex = "0.4"
+
+# Pattern matching for field auth rules
+glob = "0.3"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"
+
+[[bin]]
+name = "sentinel-agent-graphql-security"
+path = "src/main.rs"
+
+[lib]
+name = "sentinel_agent_graphql_security"
+path = "src/lib.rs"
