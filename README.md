@@ -227,10 +227,8 @@ Register the agent in your Zentinel proxy configuration:
 agents {
     agent "graphql-security" {
         type "custom"
-        transport "grpc" {
-            address "127.0.0.1:50051"
-        }
-        events ["request_headers", "request_body_chunk"]
+        grpc "127.0.0.1:50051"
+        events "request_headers" "request_body"
         timeout-ms 100
         failure-mode "open"
     }
@@ -240,7 +238,7 @@ routes {
     route "graphql" {
         matches { path-prefix "/graphql" }
         upstream "graphql-backend"
-        agents ["graphql-security"]
+        agents "graphql-security"
     }
 }
 ```
@@ -251,10 +249,8 @@ routes {
 agents {
     agent "graphql-security" {
         type "custom"
-        transport "unix_socket" {
-            path "/var/run/zentinel/graphql-security.sock"
-        }
-        events ["request_headers", "request_body_chunk"]
+        unix-socket "/var/run/zentinel/graphql-security.sock"
+        events "request_headers" "request_body"
         timeout-ms 100
         failure-mode "open"
     }
@@ -264,7 +260,7 @@ routes {
     route "graphql" {
         matches { path-prefix "/graphql" }
         upstream "graphql-backend"
-        agents ["graphql-security"]
+        agents "graphql-security"
     }
 }
 ```
