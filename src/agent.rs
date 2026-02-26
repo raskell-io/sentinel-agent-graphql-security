@@ -11,6 +11,11 @@ use crate::config::{FailAction, GraphQLSecurityConfig};
 use crate::error::{graphql_error_response, GraphQLError, Violation};
 use crate::parser::{parse_query, parse_request};
 use async_trait::async_trait;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{debug, info, warn};
 use zentinel_agent_protocol::v2::{
     AgentCapabilities, AgentFeatures, AgentHandlerV2, AgentLimits, DrainReason, HealthConfig,
     HealthStatus, MetricsReport, ShutdownReason,
@@ -18,11 +23,6 @@ use zentinel_agent_protocol::v2::{
 use zentinel_agent_protocol::{
     AgentResponse, Decision, EventType, HeaderOp, RequestHeadersEvent, PROTOCOL_VERSION,
 };
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
 
 /// GraphQL Security Agent for Zentinel.
 ///
@@ -213,8 +213,7 @@ impl GraphQLSecurityAgent {
 
                 let mut result = AnalysisResult::ok();
                 for analyzer in analyzers.iter() {
-                    let analyzer_result =
-                        handle.block_on(analyzer.analyze(&document, &ctx));
+                    let analyzer_result = handle.block_on(analyzer.analyze(&document, &ctx));
                     result.merge(analyzer_result);
                 }
 
@@ -266,7 +265,11 @@ impl GraphQLSecurityAgent {
     }
 
     /// Build allow response with optional debug headers.
-    fn build_allow_response(&self, metrics: &AnalysisMetrics, debug_headers: bool) -> AgentResponse {
+    fn build_allow_response(
+        &self,
+        metrics: &AnalysisMetrics,
+        debug_headers: bool,
+    ) -> AgentResponse {
         let mut response_headers = vec![];
 
         if debug_headers {
@@ -482,9 +485,11 @@ impl AgentHandlerV2 for GraphQLSecurityAgent {
                 );
 
                 match fail_action {
-                    FailAction::Block => {
-                        self.build_block_response(&[violation], &AnalysisMetrics::default(), debug_headers)
-                    }
+                    FailAction::Block => self.build_block_response(
+                        &[violation],
+                        &AnalysisMetrics::default(),
+                        debug_headers,
+                    ),
                     FailAction::Allow => {
                         info!(
                             correlation_id = %correlation_id,
@@ -570,10 +575,7 @@ impl AgentHandlerV2 for GraphQLSecurityAgent {
 
     /// Handle drain request.
     async fn on_drain(&self, duration_ms: u64, reason: DrainReason) {
-        info!(
-            "Drain requested: {:?}, duration: {}ms",
-            reason, duration_ms
-        );
+        info!("Drain requested: {:?}, duration: {}ms", reason, duration_ms);
         // Stop accepting new requests
     }
 }

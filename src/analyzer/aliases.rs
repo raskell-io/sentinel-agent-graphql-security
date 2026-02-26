@@ -102,12 +102,7 @@ impl AliasAnalyzer {
                     for def in cst.document().definitions() {
                         if let cst::Definition::OperationDefinition(op) = def {
                             if let Some(ss) = op.selection_set() {
-                                self.count_aliases(
-                                    &ss,
-                                    fragments,
-                                    visited_fragments,
-                                    alias_counts,
-                                );
+                                self.count_aliases(&ss, fragments, visited_fragments, alias_counts);
                             }
                         }
                     }
@@ -132,28 +127,21 @@ impl Analyzer for AliasAnalyzer {
         "aliases"
     }
 
-    async fn analyze(
-        &self,
-        document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult {
+    async fn analyze(&self, document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult {
         let mut alias_counts = AliasCounters::default();
 
         // Analyze each operation in the document
         for definition in document.document.definitions() {
-            match definition {
-                cst::Definition::OperationDefinition(op) => {
-                    if let Some(selection_set) = op.selection_set() {
-                        let mut visited = HashSet::new();
-                        self.count_aliases(
-                            &selection_set,
-                            &document.fragments,
-                            &mut visited,
-                            &mut alias_counts,
-                        );
-                    }
+            if let cst::Definition::OperationDefinition(op) = definition {
+                if let Some(selection_set) = op.selection_set() {
+                    let mut visited = HashSet::new();
+                    self.count_aliases(
+                        &selection_set,
+                        &document.fragments,
+                        &mut visited,
+                        &mut alias_counts,
+                    );
                 }
-                _ => {}
             }
         }
 
@@ -200,7 +188,10 @@ impl Analyzer for AliasAnalyzer {
             ));
         }
 
-        AnalysisResult { violations, metrics }
+        AnalysisResult {
+            violations,
+            metrics,
+        }
     }
 }
 
@@ -267,7 +258,10 @@ mod tests {
         let result = analyzer.analyze(&doc, &ctx).await;
 
         assert!(result.has_violations());
-        assert_eq!(result.violations[0].code, crate::error::ViolationCode::TooManyAliases);
+        assert_eq!(
+            result.violations[0].code,
+            crate::error::ViolationCode::TooManyAliases
+        );
         assert_eq!(result.metrics.aliases, Some(6));
     }
 
@@ -277,17 +271,19 @@ mod tests {
         config.max_aliases = 10;
         config.max_duplicate_aliases = 2;
         let analyzer = AliasAnalyzer::new(config);
-        let doc = parse_query(
-            "{ a: user(id: 1) { id } b: user(id: 2) { id } c: user(id: 3) { id } }",
-        )
-        .unwrap();
+        let doc =
+            parse_query("{ a: user(id: 1) { id } b: user(id: 2) { id } c: user(id: 3) { id } }")
+                .unwrap();
         let ctx = test_context();
 
         let result = analyzer.analyze(&doc, &ctx).await;
 
         assert!(result.has_violations());
         // 3 aliases of "user" exceeds max_duplicate_aliases of 2
-        assert_eq!(result.violations[0].code, crate::error::ViolationCode::TooManyAliases);
+        assert_eq!(
+            result.violations[0].code,
+            crate::error::ViolationCode::TooManyAliases
+        );
     }
 
     #[tokio::test]

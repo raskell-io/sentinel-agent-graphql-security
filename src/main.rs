@@ -8,11 +8,11 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use std::path::PathBuf;
+use tracing::{info, Level};
+use tracing_subscriber::FmtSubscriber;
 use zentinel_agent_graphql_security::{GraphQLSecurityAgent, GraphQLSecurityConfig};
 use zentinel_agent_protocol::v2::{GrpcAgentServerV2, UdsAgentServerV2};
-use std::path::PathBuf;
-use tracing::{info, warn, Level};
-use tracing_subscriber::FmtSubscriber;
 
 /// GraphQL Security Agent for Zentinel proxy (Protocol v2).
 ///
@@ -116,11 +116,7 @@ async fn main() -> Result<()> {
         // UDS transport (v2 protocol)
         info!("Socket path: {}", args.socket.display());
 
-        let server = UdsAgentServerV2::new(
-            "graphql-security",
-            &args.socket,
-            Box::new(agent),
-        );
+        let server = UdsAgentServerV2::new("graphql-security", &args.socket, Box::new(agent));
 
         // Set up graceful shutdown
         let shutdown = async {

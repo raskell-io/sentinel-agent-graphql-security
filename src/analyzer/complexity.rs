@@ -157,7 +157,12 @@ impl ComplexityAnalyzer {
             for arg in args.arguments() {
                 if let Some(arg_name) = arg.name() {
                     let name = arg_name.text();
-                    if self.config.list_size_arguments.iter().any(|s| s.as_str() == name.as_str()) {
+                    if self
+                        .config
+                        .list_size_arguments
+                        .iter()
+                        .any(|s| s.as_str() == name.as_str())
+                    {
                         // Try to extract the value
                         if let Some(value) = arg.value() {
                             if let Some(num) = extract_int_value(&value) {
@@ -211,9 +216,7 @@ impl ComplexityAnalyzer {
 /// Extract integer value from a CST value.
 fn extract_int_value(value: &cst::Value) -> Option<i64> {
     match value {
-        cst::Value::IntValue(v) => {
-            v.int_token().and_then(|t| t.text().parse().ok())
-        }
+        cst::Value::IntValue(v) => v.int_token().and_then(|t| t.text().parse().ok()),
         cst::Value::Variable(_) => {
             // Can't evaluate variables without runtime context
             // Use default multiplier
@@ -229,29 +232,22 @@ impl Analyzer for ComplexityAnalyzer {
         "complexity"
     }
 
-    async fn analyze(
-        &self,
-        document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult {
+    async fn analyze(&self, document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult {
         let mut total_complexity: u64 = 0;
 
         for definition in document.document.definitions() {
-            match definition {
-                cst::Definition::OperationDefinition(op) => {
-                    if let Some(selection_set) = op.selection_set() {
-                        let mut visited = HashSet::new();
-                        let complexity = self.calculate_complexity(
-                            &selection_set,
-                            &document.fragments,
-                            &mut visited,
-                            None,
-                            1, // Base multiplier
-                        );
-                        total_complexity += complexity;
-                    }
+            if let cst::Definition::OperationDefinition(op) = definition {
+                if let Some(selection_set) = op.selection_set() {
+                    let mut visited = HashSet::new();
+                    let complexity = self.calculate_complexity(
+                        &selection_set,
+                        &document.fragments,
+                        &mut visited,
+                        None,
+                        1, // Base multiplier
+                    );
+                    total_complexity += complexity;
                 }
-                _ => {}
             }
         }
 
@@ -294,11 +290,7 @@ mod tests {
             default_list_multiplier: 10,
             type_costs: HashMap::new(),
             field_costs: HashMap::new(),
-            list_size_arguments: vec![
-                "first".to_string(),
-                "last".to_string(),
-                "limit".to_string(),
-            ],
+            list_size_arguments: vec!["first".to_string(), "last".to_string(), "limit".to_string()],
         }
     }
 
@@ -376,10 +368,7 @@ mod tests {
     #[tokio::test]
     async fn test_nested_list_multipliers() {
         let analyzer = ComplexityAnalyzer::new(test_config());
-        let doc = parse_query(
-            "{ users(first: 10) { posts(first: 5) { title } } }",
-        )
-        .unwrap();
+        let doc = parse_query("{ users(first: 10) { posts(first: 5) { title } } }").unwrap();
         let ctx = test_context();
 
         let result = analyzer.analyze(&doc, &ctx).await;

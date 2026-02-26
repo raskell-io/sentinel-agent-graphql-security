@@ -76,19 +76,14 @@ impl Default for SettingsConfig {
 }
 
 /// Failure action when violations are detected.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FailAction {
     /// Block the request
+    #[default]
     Block,
     /// Allow the request (log only)
     Allow,
-}
-
-impl Default for FailAction {
-    fn default() -> Self {
-        Self::Block
-    }
 }
 
 /// Depth limiting configuration.
@@ -237,7 +232,7 @@ impl Default for IntrospectionConfig {
 }
 
 /// Field-level authorization configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FieldAuthConfig {
     /// Enable field-level authorization
@@ -245,15 +240,6 @@ pub struct FieldAuthConfig {
 
     /// Authorization rules
     pub rules: Vec<FieldAuthRule>,
-}
-
-impl Default for FieldAuthConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            rules: Vec::new(),
-        }
-    }
 }
 
 /// Single field authorization rule.
@@ -308,19 +294,14 @@ impl Default for PersistedQueriesConfig {
 }
 
 /// Persisted query mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PersistedQueryMode {
     /// Only queries in the allowlist are permitted
+    #[default]
     Allowlist,
     /// Any query is allowed, cached for performance
     Cache,
-}
-
-impl Default for PersistedQueryMode {
-    fn default() -> Self {
-        Self::Allowlist
-    }
 }
 
 #[cfg(test)]

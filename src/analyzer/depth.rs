@@ -45,9 +45,7 @@ impl DepthAnalyzer {
                     } else {
                         let nested_depth = field
                             .selection_set()
-                            .map(|ss| {
-                                self.calculate_depth(&ss, fragments, visited_fragments)
-                            })
+                            .map(|ss| self.calculate_depth(&ss, fragments, visited_fragments))
                             .unwrap_or(0);
                         1 + nested_depth
                     }
@@ -77,14 +75,10 @@ impl DepthAnalyzer {
                         0
                     }
                 }
-                cst::Selection::InlineFragment(inline) => {
-                    inline
-                        .selection_set()
-                        .map(|ss| {
-                            self.calculate_depth(&ss, fragments, visited_fragments)
-                        })
-                        .unwrap_or(0)
-                }
+                cst::Selection::InlineFragment(inline) => inline
+                    .selection_set()
+                    .map(|ss| self.calculate_depth(&ss, fragments, visited_fragments))
+                    .unwrap_or(0),
             };
 
             max_depth = max_depth.max(depth);
@@ -134,28 +128,18 @@ impl Analyzer for DepthAnalyzer {
         "depth"
     }
 
-    async fn analyze(
-        &self,
-        document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult {
+    async fn analyze(&self, document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult {
         let mut max_depth: u32 = 0;
 
         // Analyze each operation in the document
         for definition in document.document.definitions() {
-            match definition {
-                cst::Definition::OperationDefinition(op) => {
-                    if let Some(selection_set) = op.selection_set() {
-                        let mut visited = HashSet::new();
-                        let depth = self.calculate_depth(
-                            &selection_set,
-                            &document.fragments,
-                            &mut visited,
-                        );
-                        max_depth = max_depth.max(depth);
-                    }
+            if let cst::Definition::OperationDefinition(op) = definition {
+                if let Some(selection_set) = op.selection_set() {
+                    let mut visited = HashSet::new();
+                    let depth =
+                        self.calculate_depth(&selection_set, &document.fragments, &mut visited);
+                    max_depth = max_depth.max(depth);
                 }
-                _ => {}
             }
         }
 
@@ -224,10 +208,7 @@ mod tests {
     #[tokio::test]
     async fn test_nested_query_depth() {
         let analyzer = DepthAnalyzer::new(test_config());
-        let doc = parse_query(
-            "{ users { posts { comments { author { name } } } } }",
-        )
-        .unwrap();
+        let doc = parse_query("{ users { posts { comments { author { name } } } } }").unwrap();
         let ctx = test_context();
 
         let result = analyzer.analyze(&doc, &ctx).await;
@@ -239,26 +220,23 @@ mod tests {
     #[tokio::test]
     async fn test_exceeds_depth() {
         let analyzer = DepthAnalyzer::new(test_config());
-        let doc = parse_query(
-            "{ a { b { c { d { e { f { g } } } } } } }",
-        )
-        .unwrap();
+        let doc = parse_query("{ a { b { c { d { e { f { g } } } } } } }").unwrap();
         let ctx = test_context();
 
         let result = analyzer.analyze(&doc, &ctx).await;
 
         assert!(result.has_violations());
-        assert_eq!(result.violations[0].code, crate::error::ViolationCode::DepthExceeded);
+        assert_eq!(
+            result.violations[0].code,
+            crate::error::ViolationCode::DepthExceeded
+        );
         assert_eq!(result.metrics.depth, Some(7));
     }
 
     #[tokio::test]
     async fn test_introspection_ignored() {
         let analyzer = DepthAnalyzer::new(test_config());
-        let doc = parse_query(
-            "{ __schema { types { name fields { name } } } }",
-        )
-        .unwrap();
+        let doc = parse_query("{ __schema { types { name fields { name } } } }").unwrap();
         let ctx = test_context();
 
         let result = analyzer.analyze(&doc, &ctx).await;
@@ -276,10 +254,7 @@ mod tests {
             ignore_introspection: false,
         };
         let analyzer = DepthAnalyzer::new(config);
-        let doc = parse_query(
-            "{ __schema { types { name fields { name } } } }",
-        )
-        .unwrap();
+        let doc = parse_query("{ __schema { types { name fields { name } } } }").unwrap();
         let ctx = test_context();
 
         let result = analyzer.analyze(&doc, &ctx).await;
@@ -292,10 +267,7 @@ mod tests {
     #[tokio::test]
     async fn test_inline_fragment_depth() {
         let analyzer = DepthAnalyzer::new(test_config());
-        let doc = parse_query(
-            "{ users { ... on User { posts { title } } } }",
-        )
-        .unwrap();
+        let doc = parse_query("{ users { ... on User { posts { title } } } }").unwrap();
         let ctx = test_context();
 
         let result = analyzer.analyze(&doc, &ctx).await;

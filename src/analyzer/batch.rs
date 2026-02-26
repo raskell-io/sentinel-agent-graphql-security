@@ -27,11 +27,7 @@ impl Analyzer for BatchAnalyzer {
         "batch"
     }
 
-    async fn analyze(
-        &self,
-        _document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult {
+    async fn analyze(&self, _document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult {
         let batch_count = ctx.batch_count as u32;
 
         debug!(

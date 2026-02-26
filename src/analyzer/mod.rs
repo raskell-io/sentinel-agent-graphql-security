@@ -175,11 +175,7 @@ pub trait Analyzer: Send + Sync {
     fn name(&self) -> &'static str;
 
     /// Analyze a parsed GraphQL document.
-    async fn analyze(
-        &self,
-        document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult;
+    async fn analyze(&self, document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult;
 }
 
 #[cfg(test)]
@@ -189,10 +185,7 @@ mod tests {
     #[test]
     fn test_analysis_context_header() {
         let mut headers = HashMap::new();
-        headers.insert(
-            "x-user-roles".to_string(),
-            vec!["admin, user".to_string()],
-        );
+        headers.insert("x-user-roles".to_string(), vec!["admin, user".to_string()]);
         headers.insert("authorization".to_string(), vec!["Bearer xyz".to_string()]);
 
         let ctx = AnalysisContext {

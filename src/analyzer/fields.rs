@@ -57,31 +57,28 @@ impl FieldAuthAnalyzer {
         let mut fields = Vec::new();
 
         for definition in document.document.definitions() {
-            match definition {
-                cst::Definition::OperationDefinition(op) => {
-                    // Determine the root type based on operation type
-                    let root_type = op
-                        .operation_type()
-                        .map(|ot| {
-                            if ot.mutation_token().is_some() {
-                                "Mutation"
-                            } else if ot.subscription_token().is_some() {
-                                "Subscription"
-                            } else {
-                                "Query"
-                            }
-                        })
-                        .unwrap_or("Query");
+            if let cst::Definition::OperationDefinition(op) = definition {
+                // Determine the root type based on operation type
+                let root_type = op
+                    .operation_type()
+                    .map(|ot| {
+                        if ot.mutation_token().is_some() {
+                            "Mutation"
+                        } else if ot.subscription_token().is_some() {
+                            "Subscription"
+                        } else {
+                            "Query"
+                        }
+                    })
+                    .unwrap_or("Query");
 
-                    if let Some(selection_set) = op.selection_set() {
-                        fields.extend(extract_fields(
-                            &selection_set,
-                            &document.fragments,
-                            Some(root_type),
-                        ));
-                    }
+                if let Some(selection_set) = op.selection_set() {
+                    fields.extend(extract_fields(
+                        &selection_set,
+                        &document.fragments,
+                        Some(root_type),
+                    ));
                 }
-                _ => {}
             }
         }
 
@@ -158,20 +155,14 @@ impl FieldAuthAnalyzer {
 
     /// Get client roles from headers.
     fn get_client_roles(&self, ctx: &AnalysisContext, rule: &FieldAuthRule) -> HashSet<String> {
-        let header_name = rule
-            .roles_header
-            .as_deref()
-            .unwrap_or("x-user-roles");
+        let header_name = rule.roles_header.as_deref().unwrap_or("x-user-roles");
 
         ctx.header_csv(header_name).into_iter().collect()
     }
 
     /// Get client scopes from headers.
     fn get_client_scopes(&self, ctx: &AnalysisContext, rule: &FieldAuthRule) -> HashSet<String> {
-        let header_name = rule
-            .scopes_header
-            .as_deref()
-            .unwrap_or("x-user-scopes");
+        let header_name = rule.scopes_header.as_deref().unwrap_or("x-user-scopes");
 
         ctx.header_csv(header_name).into_iter().collect()
     }
@@ -183,11 +174,7 @@ impl Analyzer for FieldAuthAnalyzer {
         "field_auth"
     }
 
-    async fn analyze(
-        &self,
-        document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult {
+    async fn analyze(&self, document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult {
         // Skip if no rules configured
         if self.config.rules.is_empty() {
             return AnalysisResult::ok();
@@ -216,16 +203,16 @@ impl Analyzer for FieldAuthAnalyzer {
 
             // Check against each rule
             for compiled_rule in &self.compiled_rules {
-                if self.field_matches_rule(field, compiled_rule) {
-                    if !self.client_authorized(ctx, &compiled_rule.rule) {
-                        debug!(
-                            correlation_id = %ctx.correlation_id,
-                            field = %field_id,
-                            "Field access denied"
-                        );
-                        violations.push(Violation::field_unauthorized(&field_id));
-                        break; // One violation per field is enough
-                    }
+                if self.field_matches_rule(field, compiled_rule)
+                    && !self.client_authorized(ctx, &compiled_rule.rule)
+                {
+                    debug!(
+                        correlation_id = %ctx.correlation_id,
+                        field = %field_id,
+                        "Field access denied"
+                    );
+                    violations.push(Violation::field_unauthorized(&field_id));
+                    break; // One violation per field is enough
                 }
             }
         }
@@ -242,7 +229,10 @@ impl Analyzer for FieldAuthAnalyzer {
             "Field auth analysis complete"
         );
 
-        AnalysisResult { violations, metrics }
+        AnalysisResult {
+            violations,
+            metrics,
+        }
     }
 }
 
@@ -333,10 +323,8 @@ mod tests {
         let doc = parse_query("{ adminUsers { id } }").unwrap();
 
         let mut ctx = test_context();
-        ctx.headers.insert(
-            "x-user-roles".to_string(),
-            vec!["admin, user".to_string()],
-        );
+        ctx.headers
+            .insert("x-user-roles".to_string(), vec!["admin, user".to_string()]);
 
         let result = analyzer.analyze(&doc, &ctx).await;
 
@@ -417,10 +405,8 @@ mod tests {
         let doc = parse_query("{ adminDashboard { stats } }").unwrap();
 
         let mut ctx = test_context();
-        ctx.headers.insert(
-            "authorization-roles".to_string(),
-            vec!["admin".to_string()],
-        );
+        ctx.headers
+            .insert("authorization-roles".to_string(), vec!["admin".to_string()]);
 
         let result = analyzer.analyze(&doc, &ctx).await;
 

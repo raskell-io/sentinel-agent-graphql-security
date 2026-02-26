@@ -106,11 +106,7 @@ impl Analyzer for PersistedQueryAnalyzer {
         "persisted_queries"
     }
 
-    async fn analyze(
-        &self,
-        document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult {
+    async fn analyze(&self, document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult {
         // Get query hash - either from APQ extension or calculated
         let apq_hash = get_apq_hash(&ctx.extensions);
         let query_hash = apq_hash.as_ref().unwrap_or(&document.query_hash);

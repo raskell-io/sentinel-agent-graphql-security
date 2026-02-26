@@ -139,7 +139,11 @@ impl IntrospectionAnalyzer {
         // Check header-based allowlist
         if let Some(ref header_name) = self.config.allowed_clients_header {
             if let Some(header_value) = ctx.header(header_name) {
-                if self.config.allowed_clients.contains(&header_value.to_string()) {
+                if self
+                    .config
+                    .allowed_clients
+                    .contains(&header_value.to_string())
+                {
                     return true;
                 }
             }
@@ -155,30 +159,23 @@ impl Analyzer for IntrospectionAnalyzer {
         "introspection"
     }
 
-    async fn analyze(
-        &self,
-        document: &ParsedDocument,
-        ctx: &AnalysisContext,
-    ) -> AnalysisResult {
+    async fn analyze(&self, document: &ParsedDocument, ctx: &AnalysisContext) -> AnalysisResult {
         let mut has_introspection = false;
 
         // Check each operation for introspection
         for definition in document.document.definitions() {
-            match definition {
-                cst::Definition::OperationDefinition(op) => {
-                    if let Some(selection_set) = op.selection_set() {
-                        let mut visited = HashSet::new();
-                        if self.contains_introspection(
-                            &selection_set,
-                            &document.fragments,
-                            &mut visited,
-                        ) {
-                            has_introspection = true;
-                            break;
-                        }
+            if let cst::Definition::OperationDefinition(op) = definition {
+                if let Some(selection_set) = op.selection_set() {
+                    let mut visited = HashSet::new();
+                    if self.contains_introspection(
+                        &selection_set,
+                        &document.fragments,
+                        &mut visited,
+                    ) {
+                        has_introspection = true;
+                        break;
                     }
                 }
-                _ => {}
             }
         }
 

@@ -62,9 +62,8 @@ struct GraphQLRequestBody {
 /// Handles both single requests and batch requests (JSON array).
 pub fn parse_request(body: &[u8]) -> Result<Vec<ParsedRequest>, Violation> {
     // Try to parse as JSON
-    let json: Value = serde_json::from_slice(body).map_err(|e| {
-        Violation::invalid_request(&format!("Invalid JSON: {}", e))
-    })?;
+    let json: Value = serde_json::from_slice(body)
+        .map_err(|e| Violation::invalid_request(&format!("Invalid JSON: {}", e)))?;
 
     // Check if it's a batch request (array)
     if let Some(array) = json.as_array() {
@@ -94,9 +93,9 @@ fn parse_single_request(json: &Value) -> Result<ParsedRequest, Violation> {
         Violation::invalid_request(&format!("Invalid GraphQL request format: {}", e))
     })?;
 
-    let query = body.query.ok_or_else(|| {
-        Violation::invalid_request("Missing 'query' field in GraphQL request")
-    })?;
+    let query = body
+        .query
+        .ok_or_else(|| Violation::invalid_request("Missing 'query' field in GraphQL request"))?;
 
     Ok(ParsedRequest {
         query,
@@ -115,10 +114,7 @@ pub fn parse_query(query: &str) -> Result<ParsedDocument, Violation> {
 
     // Check for parse errors
     if cst.errors().len() > 0 {
-        let errors: Vec<String> = cst
-            .errors()
-            .map(|e| e.message().to_string())
-            .collect();
+        let errors: Vec<String> = cst.errors().map(|e| e.message().to_string()).collect();
         return Err(Violation::parse_error(&errors.join("; ")));
     }
 
@@ -221,7 +217,10 @@ pub fn extract_fields(
                     .name()
                     .map(|n| n.text().to_string())
                     .unwrap_or_default();
-                let alias = field.alias().and_then(|a| a.name()).map(|n| n.text().to_string());
+                let alias = field
+                    .alias()
+                    .and_then(|a| a.name())
+                    .map(|n| n.text().to_string());
 
                 // Extract arguments
                 let mut arguments = HashMap::new();
@@ -299,36 +298,32 @@ pub fn extract_fields(
 /// Convert a CST value to JSON.
 fn value_to_json(value: &cst::Value) -> Value {
     match value {
-        cst::Value::IntValue(v) => {
-            v.int_token()
-                .and_then(|t| t.text().parse::<i64>().ok())
-                .map(Value::from)
-                .unwrap_or(Value::Null)
-        }
-        cst::Value::FloatValue(v) => {
-            v.float_token()
-                .and_then(|t| t.text().parse::<f64>().ok())
-                .map(Value::from)
-                .unwrap_or(Value::Null)
-        }
+        cst::Value::IntValue(v) => v
+            .int_token()
+            .and_then(|t| t.text().parse::<i64>().ok())
+            .map(Value::from)
+            .unwrap_or(Value::Null),
+        cst::Value::FloatValue(v) => v
+            .float_token()
+            .and_then(|t| t.text().parse::<f64>().ok())
+            .map(Value::from)
+            .unwrap_or(Value::Null),
         cst::Value::StringValue(v) => {
             let text = v.syntax().text().to_string();
             // Remove quotes
             let stripped = text.trim_matches('"').trim_matches('\'');
             Value::String(stripped.to_string())
         }
-        cst::Value::BooleanValue(v) => {
-            v.true_token()
-                .map(|_| Value::Bool(true))
-                .or_else(|| v.false_token().map(|_| Value::Bool(false)))
-                .unwrap_or(Value::Null)
-        }
+        cst::Value::BooleanValue(v) => v
+            .true_token()
+            .map(|_| Value::Bool(true))
+            .or_else(|| v.false_token().map(|_| Value::Bool(false)))
+            .unwrap_or(Value::Null),
         cst::Value::NullValue(_) => Value::Null,
-        cst::Value::EnumValue(v) => {
-            v.name()
-                .map(|n| Value::String(n.text().to_string()))
-                .unwrap_or(Value::Null)
-        }
+        cst::Value::EnumValue(v) => v
+            .name()
+            .map(|n| Value::String(n.text().to_string()))
+            .unwrap_or(Value::Null),
         cst::Value::ListValue(v) => {
             let items: Vec<Value> = v.values().map(|val| value_to_json(&val)).collect();
             Value::Array(items)
@@ -347,11 +342,10 @@ fn value_to_json(value: &cst::Value) -> Value {
             }
             Value::Object(map)
         }
-        cst::Value::Variable(v) => {
-            v.name()
-                .map(|n| Value::String(format!("${}", n.text())))
-                .unwrap_or(Value::Null)
-        }
+        cst::Value::Variable(v) => v
+            .name()
+            .map(|n| Value::String(format!("${}", n.text())))
+            .unwrap_or(Value::Null),
     }
 }
 
