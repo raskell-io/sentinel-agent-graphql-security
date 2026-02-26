@@ -4,12 +4,12 @@
 //!
 //! Supports gRPC transport for v2 protocol:
 //! - gRPC: `--grpc-address 0.0.0.0:50051` (recommended for v2 features)
-//! - UDS: `--socket /tmp/graphql-security.sock` (v1 compatibility mode)
+//! - UDS: `--socket /tmp/graphql-security.sock`
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use zentinel_agent_graphql_security::{GraphQLSecurityAgent, GraphQLSecurityConfig};
-use zentinel_agent_protocol::v2::GrpcAgentServerV2;
+use zentinel_agent_protocol::v2::{GrpcAgentServerV2, UdsAgentServerV2};
 use std::path::PathBuf;
 use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -31,7 +31,7 @@ struct Args {
     #[arg(short, long, default_value = "config.yaml")]
     config: PathBuf,
 
-    /// Unix socket path for agent communication (v1 compatibility mode)
+    /// Unix socket path for agent communication (UDS transport)
     #[arg(short, long, default_value = "/tmp/zentinel-graphql-security.sock")]
     socket: PathBuf,
 
@@ -113,24 +113,13 @@ async fn main() -> Result<()> {
             }
         }
     } else {
-        // UDS transport - v1 compatibility mode
-        // The v1 AgentServer uses the older AgentHandler trait, but we have AgentHandlerV2.
-        // For full v2 features, use --grpc-address instead.
-        warn!("UDS mode uses v1 protocol. For full v2 features, use --grpc-address");
+        // UDS transport (v2 protocol)
         info!("Socket path: {}", args.socket.display());
 
-        // Remove existing socket file
-        if args.socket.exists() {
-            std::fs::remove_file(&args.socket).context("Failed to remove existing socket file")?;
-        }
-
-        // Create a v1 UDS server with an adapter
-        // Note: We wrap the v2 handler in a v1-compatible adapter
-        let adapter = V2ToV1Adapter::new(agent);
-        let server = zentinel_agent_protocol::AgentServer::new(
+        let server = UdsAgentServerV2::new(
             "graphql-security",
             &args.socket,
-            Box::new(adapter),
+            Box::new(agent),
         );
 
         // Set up graceful shutdown
@@ -149,98 +138,8 @@ async fn main() -> Result<()> {
                 info!("Shutting down UDS server");
             }
         }
-
-        // Clean up socket file
-        if args.socket.exists() {
-            let _ = std::fs::remove_file(&args.socket);
-        }
     }
 
     info!("Agent stopped");
     Ok(())
-}
-
-/// Adapter to use a v2 handler with the v1 AgentServer.
-///
-/// This allows the agent to run in UDS mode for backwards compatibility
-/// while still using the v2 handler implementation internally.
-struct V2ToV1Adapter {
-    handler: GraphQLSecurityAgent,
-}
-
-impl V2ToV1Adapter {
-    fn new(handler: GraphQLSecurityAgent) -> Self {
-        Self { handler }
-    }
-}
-
-#[async_trait::async_trait]
-impl zentinel_agent_protocol::AgentHandler for V2ToV1Adapter {
-    async fn on_configure(
-        &self,
-        event: zentinel_agent_protocol::ConfigureEvent,
-    ) -> zentinel_agent_protocol::AgentResponse {
-        use zentinel_agent_protocol::v2::AgentHandlerV2;
-        let success = self.handler.on_configure(event.config, None).await;
-        if success {
-            zentinel_agent_protocol::AgentResponse::default_allow()
-        } else {
-            zentinel_agent_protocol::AgentResponse {
-                version: zentinel_agent_protocol::PROTOCOL_VERSION,
-                decision: zentinel_agent_protocol::Decision::Block {
-                    status: 500,
-                    body: Some("Configuration rejected".to_string()),
-                    headers: None,
-                },
-                request_headers: vec![],
-                response_headers: vec![],
-                routing_metadata: std::collections::HashMap::new(),
-                audit: Default::default(),
-                needs_more: false,
-                request_body_mutation: None,
-                response_body_mutation: None,
-                websocket_decision: None,
-            }
-        }
-    }
-
-    async fn on_request_headers(
-        &self,
-        event: zentinel_agent_protocol::RequestHeadersEvent,
-    ) -> zentinel_agent_protocol::AgentResponse {
-        use zentinel_agent_protocol::v2::AgentHandlerV2;
-        self.handler.on_request_headers(event).await
-    }
-
-    async fn on_request_body_chunk(
-        &self,
-        event: zentinel_agent_protocol::RequestBodyChunkEvent,
-    ) -> zentinel_agent_protocol::AgentResponse {
-        use zentinel_agent_protocol::v2::AgentHandlerV2;
-        self.handler.on_request_body_chunk(event).await
-    }
-
-    async fn on_response_headers(
-        &self,
-        event: zentinel_agent_protocol::ResponseHeadersEvent,
-    ) -> zentinel_agent_protocol::AgentResponse {
-        use zentinel_agent_protocol::v2::AgentHandlerV2;
-        self.handler.on_response_headers(event).await
-    }
-
-    async fn on_response_body_chunk(
-        &self,
-        event: zentinel_agent_protocol::ResponseBodyChunkEvent,
-    ) -> zentinel_agent_protocol::AgentResponse {
-        use zentinel_agent_protocol::v2::AgentHandlerV2;
-        self.handler.on_response_body_chunk(event).await
-    }
-
-    async fn on_request_complete(
-        &self,
-        event: zentinel_agent_protocol::RequestCompleteEvent,
-    ) -> zentinel_agent_protocol::AgentResponse {
-        use zentinel_agent_protocol::v2::AgentHandlerV2;
-        self.handler.on_request_complete(event).await
-    }
 }

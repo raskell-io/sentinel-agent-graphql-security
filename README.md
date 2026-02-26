@@ -54,18 +54,30 @@ A dedicated GraphQL security agent for [Zentinel](https://github.com/zentinelpro
 
 ## Installation
 
+### Using Bundle (Recommended)
+
+```bash
+# Install just this agent
+zentinel bundle install graphql-security
+
+# Or install all bundled agents
+zentinel bundle install
+```
+
+The bundle command downloads the correct binary for your platform and places it in the standard location. See the [bundle documentation](https://zentinelproxy.io/docs/deployment/bundle/) for details.
+
+### Using Cargo
+
+```bash
+cargo install zentinel-agent-graphql-security
+```
+
 ### From Source
 
 ```bash
 git clone https://github.com/zentinelproxy/zentinel-agent-graphql-security
 cd zentinel-agent-graphql-security
 cargo build --release
-```
-
-### Binary
-
-```bash
-./target/release/zentinel-graphql-security-agent --config config.yaml
 ```
 
 ## Quick Start
