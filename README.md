@@ -68,14 +68,11 @@ The bundle command downloads the correct binary for your platform and places it 
 
 ### Using Cargo
 
-`zentinel-agent-graphql-security` is not published on crates.io, so `cargo install zentinel-agent-graphql-security` does not
-work. Install straight from the repository instead:
-
-```bash
-cargo install --git https://github.com/zentinelproxy/zentinel-agent-graphql-security
-```
-
-This builds and installs the `zentinel-graphql-security-agent` binary.
+Not currently supported. `zentinel-agent-graphql-security` is not published on
+crates.io, and `cargo install --git` also fails today: this agent depends on
+`zentinel-agent-sdk = "0.2"` from crates.io, and that published SDK still targets
+the v1 agent protocol, which `zentinel-agent-protocol` removed in 26.02. Until an
+SDK release targeting the v2 protocol is published, use a prebuilt binary.
 
 ### Prebuilt Binaries
 
