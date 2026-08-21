@@ -18,11 +18,9 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 use zentinel_agent_protocol::v2::{
     AgentCapabilities, AgentFeatures, AgentHandlerV2, AgentLimits, DrainReason, HealthConfig,
-    HealthStatus, MetricsReport, ShutdownReason,
+    HealthStatus, MetricsReport, ShutdownReason, PROTOCOL_VERSION_2,
 };
-use zentinel_agent_protocol::{
-    AgentResponse, Decision, EventType, HeaderOp, RequestHeadersEvent, PROTOCOL_VERSION,
-};
+use zentinel_agent_protocol::{AgentResponse, Decision, EventType, HeaderOp, RequestHeadersEvent};
 
 /// GraphQL Security Agent for Zentinel.
 ///
@@ -247,7 +245,7 @@ impl GraphQLSecurityAgent {
         }
 
         AgentResponse {
-            version: PROTOCOL_VERSION,
+            version: PROTOCOL_VERSION_2,
             decision: Decision::Block {
                 status: 200, // GraphQL errors use HTTP 200 with errors in body
                 body: Some(body_str),
@@ -277,7 +275,7 @@ impl GraphQLSecurityAgent {
         }
 
         AgentResponse {
-            version: PROTOCOL_VERSION,
+            version: PROTOCOL_VERSION_2,
             decision: Decision::Allow,
             request_headers: vec![],
             response_headers,
@@ -384,7 +382,7 @@ impl AgentHandlerV2 for GraphQLSecurityAgent {
         // For GraphQL, we need the body. Signal that we need more data.
         // The actual analysis will happen in on_request_body_chunk with is_last=true
         AgentResponse {
-            version: PROTOCOL_VERSION,
+            version: PROTOCOL_VERSION_2,
             decision: Decision::Allow,
             request_headers: vec![],
             response_headers: vec![],
@@ -405,7 +403,7 @@ impl AgentHandlerV2 for GraphQLSecurityAgent {
         // Only process when we have the complete body
         if !event.is_last {
             return AgentResponse {
-                version: PROTOCOL_VERSION,
+                version: PROTOCOL_VERSION_2,
                 decision: Decision::Allow,
                 request_headers: vec![],
                 response_headers: vec![],
